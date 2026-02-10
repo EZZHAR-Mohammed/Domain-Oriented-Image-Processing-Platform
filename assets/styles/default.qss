@@ -1,0 +1,21 @@
+QMainWindow, QDialog {
+    background-color: #f0f0f0;
+    color: #000000;
+}
+
+QPushButton {
+    background-color: #ffffff;
+    border: 1px solid #ccc;
+    padding: 5px;
+}
+
+QSlider::groove:horizontal {
+    background: #ddd;
+    height: 8px;
+}
+
+QSlider::handle:horizontal {
+    background: #666;
+    width: 18px;
+    margin: -2px 0;
+}
