@@ -1,15 +1,22 @@
+# ui/main_window.py
 from PyQt5.QtWidgets import QMainWindow, QFileDialog, QMessageBox, QSplitter, QAction
 from PyQt5.QtCore import Qt
+import cv2
+import numpy as np
+
 from ui.domain_selection_view import DomainSelectionView
 from ui.image_viewer import ImageViewer
 from ui.filter_panel import FilterPanel
 from ui.toolbar import AppToolBar
+
 from core.image_manager import ImageManager
 from core.history_manager import HistoryManager
 from core.domain_manager import DomainManager
 from core.filter_manager import FilterManager
 from core.recommendation_engine import RecommendationEngine
+
 from utils.report_generator import generate_pdf_report
+
 
 class MainWindow(QMainWindow):
     def __init__(self):
@@ -17,16 +24,17 @@ class MainWindow(QMainWindow):
         self.setWindowTitle("Traitement d'images par domaine")
         self.resize(1400, 900)
 
+        # Managers
         self.image_manager = ImageManager()
-        self.history = HistoryManager()
+        self.history_manager = HistoryManager()           # ← nom cohérent partout
         self.domain_manager = DomainManager()
-        self.filter_manager = FilterManager(self.image_manager, self.history)
+        self.filter_manager = FilterManager(self.image_manager, self.history_manager)
         self.rec_engine = RecommendationEngine()
 
         self.current_filters = []
 
-        # UI principale
-        self.viewer = ImageViewer(self)
+        # UI
+        self.viewer = ImageViewer(self)                   # ← on garde self.viewer
         self.filter_panel = FilterPanel(self.filter_manager, self)
 
         splitter = QSplitter(Qt.Horizontal)
@@ -60,12 +68,12 @@ class MainWindow(QMainWindow):
         export_act.triggered.connect(self.export_report)
         file_menu.addAction(export_act)
 
-        # Au démarrage → sélection domaine
+        # Sélection domaine au démarrage
         self.domain_dialog = DomainSelectionView(self.domain_manager, self)
         self.domain_dialog.domainSelected.connect(self.on_domain_selected)
         self.domain_dialog.exec_()
 
-    def on_domain_selected(self, domain_name):
+    def on_domain_selected(self, domain_name: str):
         success = self.domain_manager.set_domain(domain_name)
         if success:
             self.current_filters = self.domain_manager.get_current_filters()
@@ -81,7 +89,7 @@ class MainWindow(QMainWindow):
         if path:
             if self.image_manager.load_image(path):
                 self.viewer.display_image(self.image_manager.get_current())
-                self.history.save_state(self.image_manager.get_current())
+                self.history_manager.save_state(self.image_manager.get_current())
             else:
                 QMessageBox.warning(self, "Erreur", "Impossible de lire l'image")
 
@@ -115,32 +123,32 @@ class MainWindow(QMainWindow):
             QMessageBox.information(self, "Succès", "Rapport PDF créé")
 
     def on_undo(self):
-        if self.history.can_undo():
-            img = self.history.undo()
+        if self.history_manager.can_undo():
+            img = self.history_manager.undo()
             if img is not None:
-                self.image_manager.update_current(img)
+                self.image_manager.set_current(img)
                 self.viewer.display_image(img)
 
     def on_redo(self):
-        if self.history.can_redo():
-            img = self.history.redo()
+        if self.history_manager.can_redo():
+            img = self.history_manager.redo()
             if img is not None:
-                self.image_manager.update_current(img)
+                self.image_manager.set_current(img)
                 self.viewer.display_image(img)
 
     def on_reset(self):
         self.image_manager.reset_to_original()
-        self.image_viewer.display_image(self.image_manager.get_image())
-    # Optionnel : sauvegarder l'état dans l'historique
-        self.history_manager.save_state(self.image_manager.get_image())
+        img = self.image_manager.get_current()
+        self.viewer.display_image(img)
+        self.history_manager.save_state(img)
 
     def on_rotate(self):
         img = self.image_manager.get_current()
         if img is not None:
             rotated = cv2.rotate(img, cv2.ROTATE_90_CLOCKWISE)
-            self.image_manager.update_current(rotated)
+            self.image_manager.set_current(rotated)
             self.viewer.display_image(rotated)
-            self.history.save_state(rotated)
+            self.history_manager.save_state(rotated)
 
     def on_compare(self):
         orig = self.image_manager.get_original()
@@ -148,7 +156,6 @@ class MainWindow(QMainWindow):
         if orig is None or curr is None:
             return
 
-        # Très simple : on met côte à côte
         h_orig, w_orig = orig.shape[:2]
         h_curr, w_curr = curr.shape[:2]
         h = max(h_orig, h_curr)
@@ -158,7 +165,11 @@ class MainWindow(QMainWindow):
         self.viewer.display_image(combined)
 
     def on_recommend(self):
-        analysis = self.rec_engine.analyze_image(self.image_manager.get_current())
+        curr_img = self.image_manager.get_current()
+        if curr_img is None:
+            return
+
+        analysis = self.rec_engine.analyze_image(curr_img)
         domain = self.domain_manager.get_current_domain_name()
         suggestions = self.rec_engine.suggest_filters(analysis, domain)
 
