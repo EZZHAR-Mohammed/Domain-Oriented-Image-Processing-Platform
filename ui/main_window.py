@@ -1,10 +1,9 @@
 # ui/main_window.py
-from PyQt5.QtWidgets import QMainWindow, QFileDialog, QMessageBox, QSplitter, QAction
+from PyQt5.QtWidgets import QMainWindow, QFileDialog, QMessageBox, QSplitter, QAction, QComboBox, QLabel
 from PyQt5.QtCore import Qt
 import cv2
 import numpy as np
 
-from ui.domain_selection_view import DomainSelectionView
 from ui.image_viewer import ImageViewer
 from ui.filter_panel import FilterPanel
 from ui.toolbar import AppToolBar
@@ -26,17 +25,16 @@ class MainWindow(QMainWindow):
 
         # Managers
         self.image_manager = ImageManager()
-        self.history_manager = HistoryManager()           # ← nom cohérent partout
+        self.history_manager = HistoryManager()
         self.domain_manager = DomainManager()
         self.filter_manager = FilterManager(self.image_manager, self.history_manager)
         self.rec_engine = RecommendationEngine()
 
         self.current_filters = []
 
-        # UI
-        self.viewer = ImageViewer(self)                   # ← on garde self.viewer
-        # APRÈS
-        self.filter_panel = FilterPanel(self.filter_manager, self, self)   # le deuxième self est main_window
+        # UI centrale
+        self.viewer = ImageViewer(self)
+        self.filter_panel = FilterPanel(self.filter_manager, self, self)  # main_window passé explicitement
 
         splitter = QSplitter(Qt.Horizontal)
         splitter.addWidget(self.viewer)
@@ -48,12 +46,15 @@ class MainWindow(QMainWindow):
         self.toolbar = AppToolBar(self)
         self.addToolBar(self.toolbar)
 
+        # Connexions toolbar
         self.toolbar.undoRequested.connect(self.on_undo)
         self.toolbar.redoRequested.connect(self.on_redo)
         self.toolbar.resetRequested.connect(self.on_reset)
         self.toolbar.rotateRequested.connect(self.on_rotate)
         self.toolbar.compareRequested.connect(self.on_compare)
         self.toolbar.recommendRequested.connect(self.on_recommend)
+        self.toolbar.zoom_in_requested.connect(self.on_zoom_in)
+        self.toolbar.zoom_out_requested.connect(self.on_zoom_out)
 
         # Menu Fichier
         file_menu = self.menuBar().addMenu("Fichier")
@@ -69,10 +70,25 @@ class MainWindow(QMainWindow):
         export_act.triggered.connect(self.export_report)
         file_menu.addAction(export_act)
 
-        # Sélection domaine au démarrage
-        self.domain_dialog = DomainSelectionView(self.domain_manager, self)
-        self.domain_dialog.domainSelected.connect(self.on_domain_selected)
-        self.domain_dialog.exec_()
+        # ───────────────────────────────────────────────
+        # Nouveau : ComboBox pour choisir le domaine
+        # ───────────────────────────────────────────────
+        self.domain_combo = QComboBox()
+        domains = self.domain_manager.get_domain_names()  # ["Général", "Santé", ...]
+        self.domain_combo.addItems(domains)
+        self.domain_combo.currentTextChanged.connect(self.on_domain_selected)
+
+        # Ajout dans la toolbar (à gauche ou à droite selon préférence)
+        self.toolbar.addSeparator()
+        self.toolbar.addWidget(QLabel("Domaine : "))
+        self.toolbar.addWidget(self.domain_combo)
+
+        # Démarrage automatique sur "Général" (ou premier domaine)
+        default_domain = "Général" if "Général" in domains else domains[0]
+        self.domain_combo.setCurrentText(default_domain)
+        self.on_domain_selected(default_domain)  # Charge les filtres dès le démarrage
+
+        # Plus besoin de self.domain_dialog.exec_() → l'app s'ouvre directement
 
     def on_domain_selected(self, domain_name: str):
         success = self.domain_manager.set_domain(domain_name)
@@ -80,8 +96,9 @@ class MainWindow(QMainWindow):
             self.current_filters = self.domain_manager.get_current_filters()
             self.filter_panel.load_filters(self.current_filters)
             self.setWindowTitle(f"Traitement d'images – {domain_name}")
+            print(f"Domaine changé : {domain_name}")
         else:
-            QMessageBox.warning(self, "Erreur", "Domaine non reconnu")
+            QMessageBox.warning(self, "Erreur", f"Domaine '{domain_name}' non reconnu")
 
     def open_image(self):
         path, _ = QFileDialog.getOpenFileName(
@@ -180,3 +197,12 @@ class MainWindow(QMainWindow):
             msg = "Aucune suggestion particulière pour cette image."
 
         QMessageBox.information(self, "Recommandations", msg)
+
+    # ───────────────────────────────────────────────
+    # Nouvelles méthodes pour zoom
+    # ───────────────────────────────────────────────
+    def on_zoom_in(self):
+        self.viewer.zoom(1.25)   # Zoom +25%
+
+    def on_zoom_out(self):
+        self.viewer.zoom(0.8)    # Zoom -20%
