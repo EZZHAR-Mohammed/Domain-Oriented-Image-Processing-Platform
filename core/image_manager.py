@@ -1,33 +1,38 @@
+# core/image_manager.py
 import cv2
-
+import numpy as np
 
 class ImageManager:
     def __init__(self):
-        self.original = None
-        self.current  = None
+        self.original_image = None
+        self.current_image = None
 
-    def load(self, path: str) -> bool:
-        img = cv2.imread(path)
+    def load_image(self, file_path):
+        img = cv2.imread(file_path)
         if img is None:
             return False
-        self.original = img.copy()
-        self.current  = img.copy()
+        self.original_image = img.copy()
+        self.current_image = img.copy()
         return True
 
-    def get_current(self):
-        return self.current
+    def get_image(self):
+        """Retourne l'image courante (celle affichée/modifiée)"""
+        return self.current_image
 
-    def get_original(self):
-        return self.original
+    def get_original_image(self):
+        return self.original_image
 
-    def update(self, new_img):
-        self.current = new_img
+    def set_image(self, img):
+        self.current_image = img
 
-    def reset(self):
-        if self.original is not None:
-            self.current = self.original.copy()
+    def reset_to_original(self):
+        """Méthode qui manquait → cause de l'erreur actuelle"""
+        if self.original_image is not None:
+            self.current_image = self.original_image.copy()
+        else:
+            print("Aucune image originale → reset ignoré")
 
-    def save(self, path: str) -> bool:
-        if self.current is None:
-            return False
-        return cv2.imwrite(path, self.current)
+    def save_image(self, file_path):
+        if self.current_image is not None:
+            return cv2.imwrite(file_path, self.current_image)
+        return False

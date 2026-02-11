@@ -130,8 +130,9 @@ class MainWindow(QMainWindow):
 
     def on_reset(self):
         self.image_manager.reset_to_original()
-        self.viewer.display_image(self.image_manager.get_current())
-        self.history.save_state(self.image_manager.get_current())
+        self.image_viewer.display_image(self.image_manager.get_image())
+    # Optionnel : sauvegarder l'état dans l'historique
+        self.history_manager.save_state(self.image_manager.get_image())
 
     def on_rotate(self):
         img = self.image_manager.get_current()
