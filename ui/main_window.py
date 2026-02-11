@@ -35,7 +35,8 @@ class MainWindow(QMainWindow):
 
         # UI
         self.viewer = ImageViewer(self)                   # ← on garde self.viewer
-        self.filter_panel = FilterPanel(self.filter_manager, self)
+        # APRÈS
+        self.filter_panel = FilterPanel(self.filter_manager, self, self)   # le deuxième self est main_window
 
         splitter = QSplitter(Qt.Horizontal)
         splitter.addWidget(self.viewer)

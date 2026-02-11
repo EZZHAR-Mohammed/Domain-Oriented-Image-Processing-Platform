@@ -28,6 +28,9 @@ class ImageManager:
         """Met à jour l'image courante"""
         self.current_image = img
 
+    def update_current(self, new_img):
+        self.set_current(new_img)  # si tu as déjà set_current
+
     def reset_to_original(self) -> None:
         """Réinitialise l'image courante à l'originale"""
         if self.original_image is not None:
