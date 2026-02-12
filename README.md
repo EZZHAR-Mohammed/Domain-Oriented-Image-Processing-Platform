@@ -94,47 +94,7 @@ Controller: communication between UI and processing logic
 
 The system is designed to be extensible, allowing new domains and filters to be added with minimal changes.
 
-📁 Project Structure
-Domain-Oriented-Image-Processing-Platform/
-│
-├── main.py
-│
-├── core/
-│   ├── image_manager.py
-│   ├── history_manager.py
-│   ├── domain_manager.py
-│   ├── filter_manager.py
-│   └── recommendation_engine.py
-│
-├── domains/
-│   ├── base_domain.py
-│   ├── medical_domain.py
-│   ├── military_domain.py
-│   ├── biology_domain.py
-│   ├── satellite_domain.py
-│   └── general_domain.py
-│
-├── filters/
-│   ├── base_filter.py
-│   ├── smoothing/
-│   ├── edge_detection/
-│   ├── enhancement/
-│   └── morphology/
-│
-├── ui/
-│   ├── main_window.py
-│   ├── domain_selection_view.py
-│   ├── image_viewer.py
-│   ├── filter_panel.py
-│   └── dialogs.py
-│
-├── utils/
-│   ├── image_utils.py
-│   ├── metrics.py
-│   ├── file_io.py
-│   └── report_generator.py
-│
-└── docs/
+
 
 ⚙️ Installation & Setup
 1️⃣ Requirements
@@ -192,10 +152,6 @@ Computer vision learning and experimentation
 Intelligent filter recommendation based on image analysis
 
 AI-based segmentation and anomaly detection
-
-GPU acceleration for faster processing
-
-User profiles and persistent history using SQLite
 
 Plugin system for custom filters and domains
 
