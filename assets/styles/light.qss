@@ -1,18 +1,18 @@
 QMainWindow, QDialog {
-    background-color: #111827;
-    color: #e5e7eb;
+    background-color: #f8f9fc;
+    color: #1f2937;
 }
 
 QWidget {
     font-family: "Segoe UI", sans-serif;
     font-size: 13px;
-    color: #e5e7eb;
+    color: #1f2937;
 }
 
 QMenuBar {
-    background-color: #1f2937;
-    color: #e5e7eb;
-    border-bottom: 1px solid #374151;
+    background-color: #ffffff;
+    color: #1f2937;
+    border-bottom: 1px solid #e5e7eb;
 }
 
 QMenuBar::item {
@@ -21,13 +21,13 @@ QMenuBar::item {
 }
 
 QMenuBar::item:selected {
-    background: #374151;
+    background: #e5e7eb;
 }
 
 QMenu {
-    background-color: #1f2937;
-    color: #e5e7eb;
-    border: 1px solid #374151;
+    background-color: #ffffff;
+    color: #1f2937;
+    border: 1px solid #d1d5db;
 }
 
 QMenu::item:selected {
@@ -36,8 +36,8 @@ QMenu::item:selected {
 }
 
 QToolBar {
-    background-color: #1f2937;
-    border-bottom: 1px solid #374151;
+    background-color: #ffffff;
+    border-bottom: 1px solid #e5e7eb;
     spacing: 6px;
     padding: 4px;
 }
@@ -50,7 +50,7 @@ QToolBar QToolButton {
 }
 
 QToolBar QToolButton:hover {
-    background: #374151;
+    background: #e5e7eb;
 }
 
 QPushButton {
@@ -62,9 +62,8 @@ QPushButton {
 }
 
 QComboBox {
-    background-color: #1f2937;
-    color: #e5e7eb;
-    border: 1px solid #374151;
+    background-color: white;
+    border: 1px solid #d1d5db;
     border-radius: 6px;
     padding: 6px;
 }

@@ -1,42 +1,76 @@
 # main.py
 import sys
 from PyQt5.QtWidgets import QApplication, QAction
+from PyQt5.QtGui import QFont, QIcon
 from ui.main_window import MainWindow
 
 
 def load_qss(path: str) -> str:
-    """Charge un fichier .qss et retourne son contenu"""
+    """Charge un fichier .qss silencieusement (retourne vide si absent ou erreur)"""
     try:
         with open(path, encoding="utf-8") as f:
-            return f.read()
-    except Exception as e:
-        print(f"Erreur lors du chargement du style {path} : {e}")
+            return f.read().strip()
+    except Exception:
         return ""
 
 
 if __name__ == "__main__":
     app = QApplication(sys.argv)
 
-    # Charger le style par défaut (clair)
-    default_style = load_qss("assets/styles/default.qss")
-    app.setStyleSheet(default_style)
+    # ───────────────────────────────────────────────
+    # Police globale moderne (Segoe UI ou fallback)
+    # ───────────────────────────────────────────────
+    font = QFont("Segoe UI", 10)
+    font.setStyleHint(QFont.SansSerif)
+    app.setFont(font)
+
+    # ───────────────────────────────────────────────
+    # Thème initial = clair (light ou default)
+    # ───────────────────────────────────────────────
+    light_theme = load_qss("assets/styles/light.qss") or load_qss("assets/styles/default.qss")
+    if light_theme:
+        app.setStyleSheet(light_theme)
+
+    # ───────────────────────────────────────────────
+    # Icône de l'application (optionnel)
+    # ───────────────────────────────────────────────
+    try:
+        app.setWindowIcon(QIcon("assets/icon.png"))
+    except Exception:
+        pass  # Silencieux
 
     # Création de la fenêtre principale
     window = MainWindow()
 
-    # Ajout du switch mode sombre (dans le menu Affichage)
-    theme_action = QAction("Activer le mode sombre", window)
+    # ───────────────────────────────────────────────
+    # Switch thème clair/sombre avec texte dynamique
+    # ───────────────────────────────────────────────
+    theme_action = QAction("Passer en mode sombre", window)
     theme_action.setCheckable(True)
-    theme_action.toggled.connect(
-        lambda checked: app.setStyleSheet(
-            load_qss("assets/styles/dark.qss") if checked else load_qss("assets/styles/default.qss")
-        )
-    )
+    theme_action.setChecked(False)  # Démarre en clair
 
-    # Ajouter au menu Affichage
-    if window.menuBar():
-        view_menu = window.menuBar().addMenu("Affichage")
-        view_menu.addAction(theme_action)
+    def toggle_theme(checked):
+        if checked:
+            dark_theme = load_qss("assets/styles/dark.qss")
+            if dark_theme:
+                app.setStyleSheet(dark_theme)
+                theme_action.setText("Passer en mode clair")
+            else:
+                print("Fichier dark.qss introuvable ou vide")
+        else:
+            light_theme = load_qss("assets/styles/light.qss") or load_qss("assets/styles/default.qss")
+            if light_theme:
+                app.setStyleSheet(light_theme)
+                theme_action.setText("Passer en mode sombre")
 
+    theme_action.toggled.connect(toggle_theme)
+
+    # Ajout au menu Affichage
+    view_menu = window.menuBar().addMenu("Affichage")
+    view_menu.addAction(theme_action)
+
+    # ───────────────────────────────────────────────
+    # Lancement
+    # ───────────────────────────────────────────────
     window.show()
     sys.exit(app.exec_())
