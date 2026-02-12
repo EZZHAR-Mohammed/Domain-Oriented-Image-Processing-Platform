@@ -4,3 +4,4 @@ PyQt5>=5.15.9
 matplotlib>=3.7.0
 reportlab>=4.0.0
 opencv-contrib-python>=4.8.0
+torch>=2.0.0  # Nouveau : pour modèles IA comme U-Net

@@ -1,13 +1,17 @@
 # ui/filter_panel.py
-from PyQt5.QtWidgets import QWidget, QVBoxLayout, QLabel, QPushButton, QScrollArea
+from PyQt5.QtWidgets import (
+    QWidget, QVBoxLayout, QLabel, QPushButton, QScrollArea, QDialog
+)
 from PyQt5.QtCore import Qt
+
+from ui.filter_params_dialog import FilterParamsDialog
 
 
 class FilterPanel(QWidget):
     def __init__(self, filter_manager, main_window, parent=None):
         super().__init__(parent)
         self.filter_manager = filter_manager
-        self.main_window = main_window  # référence directe à MainWindow
+        self.main_window = main_window
 
         self.setMinimumWidth(280)
 
@@ -42,21 +46,45 @@ class FilterPanel(QWidget):
             print("Erreur : filter_manager non disponible")
             return
 
-        # Paramètres par défaut
         params = filter_instance.get_default_params()
+
+        # Si le filtre a des paramètres → ouvrir dialogue avec preview live
+        if params:
+            dialog = FilterParamsDialog(filter_instance, self.main_window, self)
+            # Connexion preview live
+            dialog.previewRequested.connect(lambda p: self.preview_filter(filter_instance, p))
+            if dialog.exec_() == QDialog.Accepted:
+                params = dialog.get_params()
+            else:
+                return  # Annulé
+        else:
+            # Pas de params → applique direct
+            pass
 
         success = self.filter_manager.apply_filter(filter_instance, params)
 
         if success:
-            # Rafraîchissement immédiat avec référence directe
-            if hasattr(self.main_window, 'viewer') and hasattr(self.main_window, 'image_manager'):
-                img = self.main_window.image_manager.get_current()
-                if img is not None:
-                    self.main_window.viewer.display_image(img)
-                    print(f"Image rafraîchie après filtre : {filter_instance.name}")
-                else:
-                    print("Image courante est None")
-            else:
-                print("MainWindow n'a pas 'viewer' ou 'image_manager'")
+            # Ajout au suivi pour export PDF
+            if hasattr(self.main_window, 'applied_filters'):
+                self.main_window.applied_filters.append((filter_instance.name, params.copy()))
+
+            # Rafraîchissement final
+            img = self.main_window.image_manager.get_current()
+            if img is not None:
+                self.main_window.viewer.display_image(img)
+                print(f"Filtre appliqué définitivement : {filter_instance.name}")
         else:
             print(f"Échec application filtre : {filter_instance.name}")
+
+    def preview_filter(self, filter_instance, params):
+        """Prévisualisation live sans toucher à l'historique"""
+        current_img = self.main_window.image_manager.get_current()
+        if current_img is None:
+            return
+
+        try:
+            preview_img = filter_instance.apply(current_img.copy(), params)
+            if preview_img is not None:
+                self.main_window.viewer.display_image(preview_img)
+        except Exception as e:
+            print(f"Erreur pendant preview : {e}")

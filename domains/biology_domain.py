@@ -5,14 +5,18 @@ from filters.enhancement.stain_enhancement import StainEnhancement
 from filters.morphology.cell_segmentation import CellSegmentation
 from filters.biology.cell_counting import CellCounting
 from filters.advanced.super_resolution import SuperResolution
+# from filters.advanced.unet_segmentation import UNet  # ← Désactivé car torch pose problème
 
 class BiologyDomain(BaseDomain):
     def __init__(self):
         super().__init__()
+        self.name = "Biologie"
+        self.description = "Filtres pour microscopie et analyse cellulaire"
         self.filters = [
             Erosion(),
             StainEnhancement(),
             CellSegmentation(),
-            CellCounting(),       # Nouveau
-            SuperResolution(),    # Nouveau
+            CellCounting(),
+            SuperResolution(),
+            # UNet(),  # ← Désactivé temporairement (problème d'installation torch)
         ]

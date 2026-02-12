@@ -32,6 +32,11 @@ class MainWindow(QMainWindow):
 
         self.current_filters = []
 
+        # ───────────────────────────────────────────────
+        # Nouveau : suivi des filtres appliqués (nom + params)
+        # ───────────────────────────────────────────────
+        self.applied_filters = []  # Liste de tuples (nom_filtre, params)
+
         # UI centrale
         self.viewer = ImageViewer(self)
         self.filter_panel = FilterPanel(self.filter_manager, self, self)  # main_window passé explicitement
@@ -71,24 +76,29 @@ class MainWindow(QMainWindow):
         file_menu.addAction(export_act)
 
         # ───────────────────────────────────────────────
-        # Nouveau : ComboBox pour choisir le domaine
+        # Nouveau : Menu Batch
+        # ───────────────────────────────────────────────
+        batch_menu = self.menuBar().addMenu("Batch")
+        batch_act = QAction("Appliquer filtre à plusieurs images", self)
+        batch_act.triggered.connect(self.on_batch_process)
+        batch_menu.addAction(batch_act)
+
+        # ───────────────────────────────────────────────
+        # ComboBox pour choisir le domaine
         # ───────────────────────────────────────────────
         self.domain_combo = QComboBox()
-        domains = self.domain_manager.get_domain_names()  # ["Général", "Santé", ...]
+        domains = self.domain_manager.get_domain_names()
         self.domain_combo.addItems(domains)
         self.domain_combo.currentTextChanged.connect(self.on_domain_selected)
 
-        # Ajout dans la toolbar (à gauche ou à droite selon préférence)
         self.toolbar.addSeparator()
         self.toolbar.addWidget(QLabel("Domaine : "))
         self.toolbar.addWidget(self.domain_combo)
 
-        # Démarrage automatique sur "Général" (ou premier domaine)
+        # Démarrage automatique sur "Général"
         default_domain = "Général" if "Général" in domains else domains[0]
         self.domain_combo.setCurrentText(default_domain)
-        self.on_domain_selected(default_domain)  # Charge les filtres dès le démarrage
-
-        # Plus besoin de self.domain_dialog.exec_() → l'app s'ouvre directement
+        self.on_domain_selected(default_domain)
 
     def on_domain_selected(self, domain_name: str):
         success = self.domain_manager.set_domain(domain_name)
@@ -136,9 +146,46 @@ class MainWindow(QMainWindow):
                 self.image_manager.get_original(),
                 self.image_manager.get_current(),
                 path,
-                domain=domain
+                domain=domain,
+                applied_filters=self.applied_filters  # ← Nouveau : passe la liste des filtres
             )
             QMessageBox.information(self, "Succès", "Rapport PDF créé")
+
+    # ───────────────────────────────────────────────
+    # Nouveau : Batch processing
+    # ───────────────────────────────────────────────
+    def on_batch_process(self):
+        paths, _ = QFileDialog.getOpenFileNames(
+            self, "Sélectionner images pour batch",
+            "", "Images (*.png *.jpg *.jpeg *.bmp *.tif *.tiff)")
+        if not paths:
+            return
+
+        if not self.current_filters:
+            QMessageBox.warning(self, "Erreur", "Aucun domaine/filtre sélectionné")
+            return
+
+        # Pour simplifier : on prend le premier filtre du domaine actuel
+        # (tu peux plus tard ajouter un QComboBox pour choisir le filtre)
+        filter_instance = self.current_filters[0]
+        params = filter_instance.get_default_params()
+
+        processed_count = 0
+        for path in paths:
+            img = cv2.imread(path)
+            if img is None:
+                continue
+
+            processed = filter_instance.apply(img, params)
+            if processed is None:
+                continue
+
+            # Sauvegarde avec suffixe _processed
+            output_path = path.rsplit(".", 1)[0] + "_processed." + path.rsplit(".", 1)[1]
+            cv2.imwrite(output_path, processed)
+            processed_count += 1
+
+        QMessageBox.information(self, "Succès", f"{processed_count} images traitées avec succès")
 
     def on_undo(self):
         if self.history_manager.can_undo():
@@ -198,11 +245,8 @@ class MainWindow(QMainWindow):
 
         QMessageBox.information(self, "Recommandations", msg)
 
-    # ───────────────────────────────────────────────
-    # Nouvelles méthodes pour zoom
-    # ───────────────────────────────────────────────
     def on_zoom_in(self):
-        self.viewer.zoom(1.25)   # Zoom +25%
+        self.viewer.zoom(1.25)
 
     def on_zoom_out(self):
-        self.viewer.zoom(0.8)    # Zoom -20%
+        self.viewer.zoom(0.8)
