@@ -1,6 +1,9 @@
-# filters/advanced/unet_segmentation.py
 import cv2
-import numpy as np
+import subprocess
+import json
+import os
+import sys
+import tempfile
 from filters.base_filter import BaseFilter
 
 
@@ -9,42 +12,81 @@ class UNet(BaseFilter):
         super().__init__()
         self.name = "U-Net Segmentation (IA)"
         self.category = "Avancé / IA"
-        self.description = "Segmentation sémantique avec modèle U-Net pré-entraîné (idéal pour cellules, tissus, anomalies)"
-        self.model = None  # Chargement paresseux pour éviter crash au démarrage
-
-    def load_model(self):
-        if self.model is not None:
-            return
-        try:
-            import torch
-            print("Chargement U-Net (torch)...")
-            self.model = torch.hub.load('mateuszbuda/brain-segmentation-pytorch', 'unet', in_channels=3, out_channels=1, pretrained=True)
-            self.model.eval()
-            print("U-Net chargé avec succès")
-        except Exception as e:
-            print(f"Erreur chargement U-Net : {e}")
-            self.model = None
+        self.description = (
+            "Segmentation sémantique avec modèle U-Net "
+            "(overlay rouge + debug masque)"
+        )
 
     def apply(self, image, params):
-        self.load_model()  # Charge seulement quand on applique
-        if self.model is None:
-            print("U-Net non chargé → retour image originale")
-            return image
+        # =============================
+        # Fichiers temporaires
+        # =============================
+        with tempfile.NamedTemporaryFile(suffix=".jpg", delete=False) as tmp_in:
+            input_path = tmp_in.name
+            cv2.imwrite(input_path, image)
+
+        with tempfile.NamedTemporaryFile(suffix=".jpg", delete=False) as tmp_out:
+            output_path = tmp_out.name
 
         try:
-            resized = cv2.resize(image, (256, 256))
-            input_tensor = torch.from_numpy(resized.transpose((2, 0, 1))).float() / 255.0
-            input_tensor = input_tensor.unsqueeze(0)
+            # =============================
+            # Lancement du worker
+            # =============================
+            proc = subprocess.run(
+                [sys.executable, "unet_worker.py", input_path, output_path],
+                capture_output=True,
+                text=True,
+                timeout=180,
+                check=False
+            )
 
-            with torch.no_grad():
-                output = self.model(input_tensor)
-                mask = (output > 0.5).float().squeeze().numpy() * 255
-                mask = cv2.resize(mask, (image.shape[1], image.shape[0]))
-                mask = cv2.cvtColor(mask.astype(np.uint8), cv2.COLOR_GRAY2BGR)
+            stdout = proc.stdout.strip()
+            stderr = proc.stderr.strip()
 
-            result = image.copy()
-            result[mask == 255] = [0, 0, 255]  # Rouge sur zones segmentées
-            return result
+            if stderr:
+                print("Worker stderr:\n", stderr)
+
+            # =============================
+            # Lecture JSON
+            # =============================
+            json_line = ""
+            for line in stdout.splitlines():
+                if line.strip().startswith("{"):
+                    json_line = line.strip()
+                    break
+
+            if not json_line:
+                print("Aucun JSON valide trouvé.\nstdout:\n", stdout)
+                return image
+
+            parsed = json.loads(json_line)
+
+            if not parsed.get("success"):
+                print("Erreur worker :", parsed.get("error"))
+                return image
+
+            # =============================
+            # Lire image résultat
+            # =============================
+            result_img = cv2.imread(parsed["output"])
+            if result_img is None:
+                print("Image résultat illisible")
+                return image
+
+            print("U-Net appliqué avec succès → masque rouge généré")
+            print("Masque debug :", parsed.get("debug_mask"))
+
+            return result_img
+
         except Exception as e:
-            print(f"Erreur application U-Net : {e}")
+            print("Erreur lancement worker U-Net :", e)
             return image
+
+        finally:
+            # Nettoyage
+            for f in [input_path, output_path]:
+                if os.path.exists(f):
+                    try:
+                        os.remove(f)
+                    except:
+                        pass

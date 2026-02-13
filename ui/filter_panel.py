@@ -85,7 +85,7 @@ class FilterPanel(QWidget):
                 QFrame:hover {
                     background-color: #f0f7ff;
                     border: 1px solid #3b82f6;
-                    box-shadow: 0 6px 16px rgba(59, 130, 246, 0.18);
+                    box-shadow: none;
                 }
             """)
 
