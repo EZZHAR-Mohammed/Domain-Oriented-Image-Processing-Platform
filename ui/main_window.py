@@ -162,31 +162,71 @@ class MainWindow(QMainWindow):
             return
 
         if not self.current_filters:
-            QMessageBox.warning(self, "Erreur", "Aucun domaine/filtre sélectionné")
+            QMessageBox.warning(self, "Erreur", "Sélectionnez d'abord un domaine avec filtres")
             return
 
-        # Pour simplifier : on prend le premier filtre du domaine actuel
-        # (tu peux plus tard ajouter un QComboBox pour choisir le filtre)
-        filter_instance = self.current_filters[0]
-        params = filter_instance.get_default_params()
+        # Dialogue choix du filtre
+        from PyQt5.QtWidgets import QDialog, QVBoxLayout, QComboBox, QPushButton, QLabel
 
-        processed_count = 0
-        for path in paths:
-            img = cv2.imread(path)
-            if img is None:
-                continue
+        dialog = QDialog(self)
+        dialog.setWindowTitle("Batch : Choisir filtre")
+        layout = QVBoxLayout(dialog)
 
-            processed = filter_instance.apply(img, params)
-            if processed is None:
-                continue
+        layout.addWidget(QLabel("Sélectionnez le filtre à appliquer à toutes les images :"))
 
-            # Sauvegarde avec suffixe _processed
-            output_path = path.rsplit(".", 1)[0] + "_processed." + path.rsplit(".", 1)[1]
-            cv2.imwrite(output_path, processed)
-            processed_count += 1
+        combo = QComboBox()
+        for filt in self.current_filters:
+            combo.addItem(f"{filt.name} ({filt.category})", filt)
+        layout.addWidget(combo)
 
-        QMessageBox.information(self, "Succès", f"{processed_count} images traitées avec succès")
+        apply_btn = QPushButton("Appliquer à toutes les images")
+        apply_btn.clicked.connect(dialog.accept)
+        layout.addWidget(apply_btn)
 
+        if dialog.exec_() == QDialog.Accepted:
+            filter_instance = combo.currentData()
+            if not filter_instance:
+                QMessageBox.warning(self, "Erreur", "Aucun filtre sélectionné")
+                return
+
+            params = filter_instance.get_default_params()
+
+            # Si le filtre a des params → ouvrir dialogue sliders
+            if params:
+                from ui.filter_params_dialog import FilterParamsDialog
+                param_dialog = FilterParamsDialog(filter_instance, self, self)
+                if param_dialog.exec_() != QDialog.Accepted:
+                    return  # Annulé
+                params = param_dialog.get_params()
+
+            # Confirmation avant traitement massif
+            reply = QMessageBox.question(
+                self, "Confirmer batch",
+                f"Appliquer '{filter_instance.name}' à {len(paths)} images ?",
+                QMessageBox.Yes | QMessageBox.No, QMessageBox.No
+            )
+            if reply != QMessageBox.Yes:
+                return
+
+            # Traitement batch
+            processed_count = 0
+            for path in paths:
+                img = cv2.imread(path)
+                if img is None:
+                    print(f"Impossible de charger {path}")
+                    continue
+
+                processed = filter_instance.apply(img, params)
+                if processed is None:
+                    continue
+
+                # Suffixe avec nom filtre (sécurisé)
+                safe_name = filter_instance.name.replace(" ", "_").replace("(", "").replace(")", "")
+                output_path = path.rsplit(".", 1)[0] + f"_batch_{safe_name}." + path.rsplit(".", 1)[1]
+                cv2.imwrite(output_path, processed)
+                processed_count += 1
+
+            QMessageBox.information(self, "Succès", f"{processed_count}/{len(paths)} images traitées avec succès\nFiltre : {filter_instance.name}")
     def on_undo(self):
         if self.history_manager.can_undo():
             img = self.history_manager.undo()
