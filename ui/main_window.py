@@ -327,10 +327,12 @@ class MainWindow(QMainWindow):
         self.viewer.display_image(img)
         self.history_manager.save_state(img)
 
-        # Mise à jour dans la liste multi-images (pour reset correct sur toutes)
+        # Mise à jour dans la liste multi-images → reset persistant
         if self.current_image_index >= 0:
             self.loaded_images[self.current_image_index] = img.copy()
+            print(f"Reset appliqué et enregistré sur : {self.image_filenames[self.current_image_index]}")
 
+            
     def on_rotate(self):
         img = self.image_manager.get_current()
         if img is not None:

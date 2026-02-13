@@ -68,11 +68,17 @@ class FilterPanel(QWidget):
             if hasattr(self.main_window, 'applied_filters'):
                 self.main_window.applied_filters.append((filter_instance.name, params.copy()))
 
-            # Rafraîchissement final
+            # Rafraîchissement final + mise à jour dans la liste multi-images
             img = self.main_window.image_manager.get_current()
             if img is not None:
                 self.main_window.viewer.display_image(img)
-                print(f"Filtre appliqué définitivement : {filter_instance.name}")
+
+                # IMPORTANT : enregistrer le résultat dans loaded_images pour persistance
+                if self.main_window.current_image_index >= 0:
+                    self.main_window.loaded_images[self.main_window.current_image_index] = img.copy()
+                    filename = self.main_window.image_filenames[self.main_window.current_image_index] if self.main_window.current_image_index < len(self.main_window.image_filenames) else "image inconnue"
+                    print(f"Filtre '{filter_instance.name}' appliqué et enregistré sur : {filename}")
+
         else:
             print(f"Échec application filtre : {filter_instance.name}")
 
