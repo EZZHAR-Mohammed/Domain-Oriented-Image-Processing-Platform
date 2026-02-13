@@ -1,12 +1,14 @@
 # ui/main_window.py
-from PyQt5.QtWidgets import QMainWindow, QFileDialog, QMessageBox, QSplitter, QAction, QComboBox, QLabel
+from PyQt5.QtWidgets import QMainWindow, QFileDialog, QMessageBox, QSplitter, QAction, QComboBox, QLabel, QDialog, QVBoxLayout, QListWidget, QPushButton
 from PyQt5.QtCore import Qt
 import cv2
 import numpy as np
+import os
 
 from ui.image_viewer import ImageViewer
 from ui.filter_panel import FilterPanel
 from ui.toolbar import AppToolBar
+from ui.filter_params_dialog import FilterParamsDialog  # Pour sliders
 
 from core.image_manager import ImageManager
 from core.history_manager import HistoryManager
@@ -32,14 +34,17 @@ class MainWindow(QMainWindow):
 
         self.current_filters = []
 
-        # ───────────────────────────────────────────────
-        # Nouveau : suivi des filtres appliqués (nom + params)
-        # ───────────────────────────────────────────────
-        self.applied_filters = []  # Liste de tuples (nom_filtre, params)
+        # Support multi-images
+        self.loaded_images = []           # Liste de np.ndarray
+        self.image_filenames = []         # Noms pour affichage
+        self.current_image_index = -1
 
-        # UI centrale
+        # Suivi filtres pour PDF
+        self.applied_filters = []
+
+        # UI
         self.viewer = ImageViewer(self)
-        self.filter_panel = FilterPanel(self.filter_manager, self, self)  # main_window passé explicitement
+        self.filter_panel = FilterPanel(self.filter_manager, self, self)
 
         splitter = QSplitter(Qt.Horizontal)
         splitter.addWidget(self.viewer)
@@ -63,29 +68,39 @@ class MainWindow(QMainWindow):
 
         # Menu Fichier
         file_menu = self.menuBar().addMenu("Fichier")
-        open_act = QAction("Ouvrir image...", self)
+        open_act = QAction("Ouvrir image(s)...", self)
         open_act.triggered.connect(self.open_image)
         file_menu.addAction(open_act)
 
-        save_act = QAction("Enregistrer sous...", self)
+        save_act = QAction("Enregistrer l'image actuelle", self)
         save_act.triggered.connect(self.save_image)
         file_menu.addAction(save_act)
+
+        # ───────────────────────────────────────────────
+        # Nouveau : Enregistrer toutes les images traitées
+        # ───────────────────────────────────────────────
+        save_all_act = QAction("Enregistrer toutes les images traitées", self)
+        save_all_act.triggered.connect(self.on_save_all_processed)
+        file_menu.addAction(save_all_act)
 
         export_act = QAction("Exporter rapport PDF", self)
         export_act.triggered.connect(self.export_report)
         file_menu.addAction(export_act)
 
-        # ───────────────────────────────────────────────
-        # Nouveau : Menu Batch
-        # ───────────────────────────────────────────────
+        # Menu Batch
         batch_menu = self.menuBar().addMenu("Batch")
-        batch_act = QAction("Appliquer filtre à plusieurs images", self)
+        batch_act = QAction("Appliquer plusieurs filtres à toutes les images", self)
         batch_act.triggered.connect(self.on_batch_process)
         batch_menu.addAction(batch_act)
 
-        # ───────────────────────────────────────────────
-        # ComboBox pour choisir le domaine
-        # ───────────────────────────────────────────────
+        # Sélecteur d'images
+        self.image_selector = QComboBox()
+        self.image_selector.currentIndexChanged.connect(self.on_image_selected)
+        self.toolbar.addSeparator()
+        self.toolbar.addWidget(QLabel("Image : "))
+        self.toolbar.addWidget(self.image_selector)
+
+        # Combo domaine
         self.domain_combo = QComboBox()
         domains = self.domain_manager.get_domain_names()
         self.domain_combo.addItems(domains)
@@ -95,7 +110,6 @@ class MainWindow(QMainWindow):
         self.toolbar.addWidget(QLabel("Domaine : "))
         self.toolbar.addWidget(self.domain_combo)
 
-        # Démarrage automatique sur "Général"
         default_domain = "Général" if "Général" in domains else domains[0]
         self.domain_combo.setCurrentText(default_domain)
         self.on_domain_selected(default_domain)
@@ -110,28 +124,79 @@ class MainWindow(QMainWindow):
         else:
             QMessageBox.warning(self, "Erreur", f"Domaine '{domain_name}' non reconnu")
 
+    def on_image_selected(self, index):
+        if 0 <= index < len(self.loaded_images):
+            self.current_image_index = index
+            self.image_manager.current_image = self.loaded_images[index].copy()
+            self.viewer.display_image(self.image_manager.get_current())
+            self.history_manager.save_state(self.image_manager.get_current())
+
     def open_image(self):
-        path, _ = QFileDialog.getOpenFileName(
-            self, "Ouvrir une image",
+        paths, _ = QFileDialog.getOpenFileNames(
+            self, "Ouvrir une ou plusieurs images",
             "", "Images (*.png *.jpg *.jpeg *.bmp *.tif *.tiff)")
-        if path:
+        if not paths:
+            return
+
+        self.loaded_images = []
+        self.image_filenames = []
+        self.image_selector.clear()
+        self.current_image_index = -1
+
+        for path in paths:
             if self.image_manager.load_image(path):
-                self.viewer.display_image(self.image_manager.get_current())
-                self.history_manager.save_state(self.image_manager.get_current())
+                img_copy = self.image_manager.get_current().copy()
+                self.loaded_images.append(img_copy)
+                filename = os.path.basename(path)
+                self.image_filenames.append(filename)
+                self.image_selector.addItem(filename)
             else:
-                QMessageBox.warning(self, "Erreur", "Impossible de lire l'image")
+                QMessageBox.warning(self, "Erreur", f"Impossible de lire {path}")
+
+        if self.loaded_images:
+            self.current_image_index = 0
+            self.image_manager.current_image = self.loaded_images[0].copy()
+            self.viewer.display_image(self.image_manager.get_current())
+            self.history_manager.save_state(self.image_manager.get_current())
+            QMessageBox.information(self, "Succès", f"{len(self.loaded_images)} image(s) chargée(s)")
 
     def save_image(self):
         if self.image_manager.get_current() is None:
             return
         path, _ = QFileDialog.getSaveFileName(
-            self, "Enregistrer l'image",
+            self, "Enregistrer l'image actuelle",
             "", "PNG (*.png);;JPEG (*.jpg *.jpeg);;TIFF (*.tif *.tiff)")
         if path:
             if self.image_manager.save_current(path):
                 QMessageBox.information(self, "Succès", "Image enregistrée")
             else:
                 QMessageBox.warning(self, "Erreur", "Échec de l'enregistrement")
+
+    def on_save_all_processed(self):
+        if not self.loaded_images:
+            QMessageBox.warning(self, "Erreur", "Aucune image chargée à enregistrer")
+            return
+
+        # Choisir un dossier
+        output_dir = QFileDialog.getExistingDirectory(self, "Choisir dossier pour enregistrer toutes les images traitées")
+        if not output_dir:
+            return
+
+        saved_count = 0
+        for i, img in enumerate(self.loaded_images):
+            if img is None:
+                continue
+
+            base_name = self.image_filenames[i] if i < len(self.image_filenames) else f"image_{i+1}"
+            base_name = os.path.splitext(base_name)[0]  # Sans extension
+
+            output_path = os.path.join(output_dir, f"{base_name}_processed.png")
+            if cv2.imwrite(output_path, img):
+                saved_count += 1
+            else:
+                print(f"Échec enregistrement : {output_path}")
+
+        QMessageBox.information(self, "Succès", f"{saved_count} images enregistrées dans {output_dir}")
 
     def export_report(self):
         if self.image_manager.get_original() is None:
@@ -147,92 +212,103 @@ class MainWindow(QMainWindow):
                 self.image_manager.get_current(),
                 path,
                 domain=domain,
-                applied_filters=self.applied_filters  # ← Nouveau : passe la liste des filtres
+                applied_filters=self.applied_filters
             )
             QMessageBox.information(self, "Succès", "Rapport PDF créé")
 
-    # ───────────────────────────────────────────────
-    # Nouveau : Batch processing
-    # ───────────────────────────────────────────────
     def on_batch_process(self):
-        paths, _ = QFileDialog.getOpenFileNames(
-            self, "Sélectionner images pour batch",
-            "", "Images (*.png *.jpg *.jpeg *.bmp *.tif *.tiff)")
-        if not paths:
+        if not self.loaded_images:
+            QMessageBox.warning(self, "Erreur", "Chargez d'abord plusieurs images")
             return
 
-        if not self.current_filters:
-            QMessageBox.warning(self, "Erreur", "Sélectionnez d'abord un domaine avec filtres")
-            return
-
-        # Dialogue choix du filtre
-        from PyQt5.QtWidgets import QDialog, QVBoxLayout, QComboBox, QPushButton, QLabel
-
+        # Dialogue choix séquence de filtres
         dialog = QDialog(self)
-        dialog.setWindowTitle("Batch : Choisir filtre")
+        dialog.setWindowTitle("Batch : Choisir filtres (appliqués à toutes les images)")
         layout = QVBoxLayout(dialog)
 
-        layout.addWidget(QLabel("Sélectionnez le filtre à appliquer à toutes les images :"))
+        layout.addWidget(QLabel(f"Appliquer une séquence sur {len(self.loaded_images)} image(s)"))
 
-        combo = QComboBox()
+        filter_list = QListWidget()
+        filter_list.setSelectionMode(QListWidget.MultiSelection)
         for filt in self.current_filters:
-            combo.addItem(f"{filt.name} ({filt.category})", filt)
-        layout.addWidget(combo)
+            filter_list.addItem(f"{filt.name} ({filt.category})")
+        layout.addWidget(filter_list)
 
-        apply_btn = QPushButton("Appliquer à toutes les images")
+        apply_btn = QPushButton("Voir/Appliquer la séquence")
         apply_btn.clicked.connect(dialog.accept)
         layout.addWidget(apply_btn)
 
         if dialog.exec_() == QDialog.Accepted:
-            filter_instance = combo.currentData()
-            if not filter_instance:
-                QMessageBox.warning(self, "Erreur", "Aucun filtre sélectionné")
+            selected_items = filter_list.selectedItems()
+            if not selected_items:
+                QMessageBox.warning(self, "Erreur", "Sélectionnez au moins un filtre")
                 return
 
-            params = filter_instance.get_default_params()
+            # Récupère les filtres dans l'ordre choisi
+            selected_filters = []
+            for item in selected_items:
+                row = filter_list.row(item)
+                selected_filters.append(self.current_filters[row])
 
-            # Si le filtre a des params → ouvrir dialogue sliders
-            if params:
-                from ui.filter_params_dialog import FilterParamsDialog
-                param_dialog = FilterParamsDialog(filter_instance, self, self)
-                if param_dialog.exec_() != QDialog.Accepted:
-                    return  # Annulé
-                params = param_dialog.get_params()
+            # Pour chaque filtre : demander params une fois (preview live)
+            sequence_params = []
+            for filt in selected_filters:
+                params = filt.get_default_params()
+                if params:
+                    param_dialog = FilterParamsDialog(filt, self, self)
+                    param_dialog.previewRequested.connect(lambda p: self.preview_filter(filt, p))
+                    if param_dialog.exec_() != QDialog.Accepted:
+                        QMessageBox.information(self, "Info", "Batch annulé")
+                        return
+                    params = param_dialog.get_params()
+                sequence_params.append(params)
 
-            # Confirmation avant traitement massif
+            # Confirmation finale
             reply = QMessageBox.question(
-                self, "Confirmer batch",
-                f"Appliquer '{filter_instance.name}' à {len(paths)} images ?",
-                QMessageBox.Yes | QMessageBox.No, QMessageBox.No
+                self, "Confirmer batch massif",
+                f"Appliquer {len(selected_filters)} filtres à {len(self.loaded_images)} images ?\n"
+                f"Les modifications seront visibles sur l'image sélectionnée en temps réel.",
+                QMessageBox.Yes | QMessageBox.No
             )
             if reply != QMessageBox.Yes:
                 return
 
-            # Traitement batch
-            processed_count = 0
-            for path in paths:
-                img = cv2.imread(path)
-                if img is None:
-                    print(f"Impossible de charger {path}")
-                    continue
+            # Application séquentielle sur TOUTES les images
+            for i in range(len(self.loaded_images)):
+                current = self.loaded_images[i].copy()
+                for j, filt in enumerate(selected_filters):
+                    current = filt.apply(current, sequence_params[j])
+                self.loaded_images[i] = current  # Mise à jour
 
-                processed = filter_instance.apply(img, params)
-                if processed is None:
-                    continue
+            # Rafraîchissement de l'image affichée
+            if self.current_image_index >= 0:
+                self.image_manager.current_image = self.loaded_images[self.current_image_index].copy()
+                self.viewer.display_image(self.image_manager.get_current())
+                self.history_manager.save_state(self.image_manager.get_current())
 
-                # Suffixe avec nom filtre (sécurisé)
-                safe_name = filter_instance.name.replace(" ", "_").replace("(", "").replace(")", "")
-                output_path = path.rsplit(".", 1)[0] + f"_batch_{safe_name}." + path.rsplit(".", 1)[1]
-                cv2.imwrite(output_path, processed)
-                processed_count += 1
+            QMessageBox.information(self, "Succès", f"Toutes les images ont été traitées avec la séquence")
 
-            QMessageBox.information(self, "Succès", f"{processed_count}/{len(paths)} images traitées avec succès\nFiltre : {filter_instance.name}")
+    def preview_filter(self, filter_instance, params):
+        current_img = self.image_manager.get_current()
+        if current_img is None:
+            return
+        try:
+            preview_img = filter_instance.apply(current_img.copy(), params)
+            if preview_img is not None:
+                self.viewer.display_image(preview_img)
+        except Exception as e:
+            print(f"Erreur preview batch : {e}")
+
     def on_undo(self):
         if self.history_manager.can_undo():
             img = self.history_manager.undo()
             if img is not None:
                 self.image_manager.set_current(img)
                 self.viewer.display_image(img)
+
+                # Mise à jour dans la liste multi-images (pour reset correct)
+                if self.current_image_index >= 0:
+                    self.loaded_images[self.current_image_index] = img.copy()
 
     def on_redo(self):
         if self.history_manager.can_redo():
@@ -241,11 +317,19 @@ class MainWindow(QMainWindow):
                 self.image_manager.set_current(img)
                 self.viewer.display_image(img)
 
+                # Mise à jour dans la liste multi-images
+                if self.current_image_index >= 0:
+                    self.loaded_images[self.current_image_index] = img.copy()
+
     def on_reset(self):
         self.image_manager.reset_to_original()
         img = self.image_manager.get_current()
         self.viewer.display_image(img)
         self.history_manager.save_state(img)
+
+        # Mise à jour dans la liste multi-images (pour reset correct sur toutes)
+        if self.current_image_index >= 0:
+            self.loaded_images[self.current_image_index] = img.copy()
 
     def on_rotate(self):
         img = self.image_manager.get_current()
@@ -255,6 +339,11 @@ class MainWindow(QMainWindow):
             self.viewer.display_image(rotated)
             self.history_manager.save_state(rotated)
 
+            # Mise à jour dans la liste multi-images
+            if self.current_image_index >= 0:
+                self.loaded_images[self.current_image_index] = rotated.copy()
+
+    # Les autres méthodes (on_compare, on_recommend, on_zoom_in, on_zoom_out) restent inchangées
     def on_compare(self):
         orig = self.image_manager.get_original()
         curr = self.image_manager.get_current()
