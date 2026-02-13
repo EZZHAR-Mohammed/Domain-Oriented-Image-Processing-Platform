@@ -1,6 +1,6 @@
 # filters/advanced/unet_segmentation.py
 import cv2
-import torch
+import numpy as np
 from filters.base_filter import BaseFilter
 
 
@@ -9,32 +9,42 @@ class UNet(BaseFilter):
         super().__init__()
         self.name = "U-Net Segmentation (IA)"
         self.category = "Avancé / IA"
-        self.description = "Segmentation sémantique avec modèle U-Net pré-entraîné (pour cellules, tissus, etc.)"
+        self.description = "Segmentation sémantique avec modèle U-Net pré-entraîné (idéal pour cellules, tissus, anomalies)"
+        self.model = None  # Chargement paresseux pour éviter crash au démarrage
 
-        # Charge un modèle pré-entraîné (ex: pour segmentation cerveau – adapte pour biologie si besoin)
-        self.model = torch.hub.load('mateuszbuda/brain-segmentation-pytorch', 'unet', in_channels=3, out_channels=1, pretrained=True)
-        self.model.eval()  # Mode inférence
+    def load_model(self):
+        if self.model is not None:
+            return
+        try:
+            import torch
+            print("Chargement U-Net (torch)...")
+            self.model = torch.hub.load('mateuszbuda/brain-segmentation-pytorch', 'unet', in_channels=3, out_channels=1, pretrained=True)
+            self.model.eval()
+            print("U-Net chargé avec succès")
+        except Exception as e:
+            print(f"Erreur chargement U-Net : {e}")
+            self.model = None
 
     def apply(self, image, params):
-        # Préparation : resize à 256x256 (taille d'input U-Net)
-        resized = cv2.resize(image, (256, 256))
+        self.load_model()  # Charge seulement quand on applique
+        if self.model is None:
+            print("U-Net non chargé → retour image originale")
+            return image
 
-        # Conversion en tensor
-        input_tensor = torch.from_numpy(resized.transpose((2, 0, 1))).float() / 255.0
-        input_tensor = input_tensor.unsqueeze(0)  # Ajout batch dimension
+        try:
+            resized = cv2.resize(image, (256, 256))
+            input_tensor = torch.from_numpy(resized.transpose((2, 0, 1))).float() / 255.0
+            input_tensor = input_tensor.unsqueeze(0)
 
-        with torch.no_grad():
-            output = self.model(input_tensor)
-            mask = (output > 0.5).float().squeeze().numpy() * 255  # Seuil à 0.5 pour binaire
+            with torch.no_grad():
+                output = self.model(input_tensor)
+                mask = (output > 0.5).float().squeeze().numpy() * 255
+                mask = cv2.resize(mask, (image.shape[1], image.shape[0]))
+                mask = cv2.cvtColor(mask.astype(np.uint8), cv2.COLOR_GRAY2BGR)
 
-        # Resize mask à taille originale
-        mask = cv2.resize(mask, (image.shape[1], image.shape[0]))
-        mask = cv2.cvtColor(mask.astype(np.uint8), cv2.COLOR_GRAY2BGR)
-
-        # Superposition : rouge pour les zones segmentées
-        result = image.copy()
-        result[mask == 255] = [0, 0, 255]
-        return result
-
-    def get_default_params(self):
-        return {}
+            result = image.copy()
+            result[mask == 255] = [0, 0, 255]  # Rouge sur zones segmentées
+            return result
+        except Exception as e:
+            print(f"Erreur application U-Net : {e}")
+            return image
