@@ -8,7 +8,7 @@ class HistogramEqualization(BaseFilter):
         super().__init__()
         self.name = "Égalisation d'histogramme"
         self.category = "Amélioration contraste"
-        self.description = "Améliore le contraste global via égalisation d'histogramme"
+        self.description = "Améliore le contraste global de l'image en redistribuant les intensités via égalisation d'histogramme."
 
     def apply(self, image: cv2.Mat, params: Dict) -> cv2.Mat:
         gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)

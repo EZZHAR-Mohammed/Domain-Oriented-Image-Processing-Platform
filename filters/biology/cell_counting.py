@@ -9,7 +9,7 @@ class CellCounting(BaseFilter):
         super().__init__()
         self.name = "Comptage de cellules"
         self.category = "Biologie / Analyse"
-
+        self.description = "Compte le nombre de cellules ou d'objets dans une image biologique en utilisant la détection de contours. Utile pour l'analyse de cultures cellulaires ou d'échantillons microscopiques."
     def apply(self, image: cv2.Mat, params: dict) -> cv2.Mat:
         gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
         blur = cv2.GaussianBlur(gray, (5,5), 0)

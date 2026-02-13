@@ -8,7 +8,8 @@ class ContrastEnhancement(BaseFilter):
         super().__init__()
         self.name = "Amélioration de contraste (CLAHE)"
         self.category = "Amélioration contraste"
-        self.description = "CLAHE – contraste local adaptatif"
+        self.description = "Améliore le contraste local de l'image en utilisant l'algorithme CLAHE (Contrast Limited Adaptive Histogram Equalization). Particulièrement efficace pour les images avec des zones sombres ou claires."
+        
 
     def apply(self, image: cv2.Mat, params: Dict) -> cv2.Mat:
         lab = cv2.cvtColor(image, cv2.COLOR_BGR2LAB)

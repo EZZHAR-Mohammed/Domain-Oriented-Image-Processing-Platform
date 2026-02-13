@@ -8,6 +8,7 @@ class TerrainEnhancement(BaseFilter):
         super().__init__()
         self.name = "Amélioration terrain (Sobel)"
         self.category = "Satellite / Géographie"
+        self.description = "Renforce les détails topographiques et les structures de terrain en utilisant l'opérateur de Sobel pour détecter les contours et les reliefs."
 
     def apply(self, image: cv2.Mat, params: Dict) -> cv2.Mat:
         gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)

@@ -9,8 +9,7 @@ class CloudDetection(BaseFilter):
         super().__init__()
         self.name = "Détection avancée de nuages"
         self.category = "Satellite / Prétraitement"
-        self.description = "Masque les nuages avec seuillage HSV + morphologie"
-
+        self.description = "Détecte les nuages dans les images satellitaires en utilisant une combinaison de seuillage de couleur et de morphologie pour isoler les zones nuageuses, même dans des conditions d'éclairage variées."
     def apply(self, image, params):
         hsv = cv2.cvtColor(image, cv2.COLOR_BGR2HSV)
         lower_cloud = np.array([0, 0, 200])

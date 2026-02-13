@@ -9,7 +9,7 @@ class CannyEdge(BaseFilter):
         super().__init__()
         self.name = "Détection de contours – Canny"
         self.category = "Détection de bords"
-        self.description = "Algorithme Canny classique pour détecter les contours"
+        self.description = "Utilise l'algorithme Canny classique pour détecter les contours et les bords principaux de l'image."
 
     def apply(self, image: cv2.Mat, params: Dict[str, Any]) -> cv2.Mat:
         low = params.get("low_threshold", 50)

@@ -9,7 +9,7 @@ class AnomalyDetection(BaseFilter):
         super().__init__()
         self.name = "Détection d'anomalies (variance locale)"
         self.category = "Avancé / Détection"
-        self.description = "Met en évidence les zones anormales via écart-type local"
+        self.description = "Met en évidence les zones anomales ou inhabituelles en calculant la variance locale. Utile pour le contrôle de qualité ou la détection de défauts."
 
     def apply(self, image, params):
         gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)

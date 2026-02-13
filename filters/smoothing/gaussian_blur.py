@@ -9,7 +9,7 @@ class GaussianBlur(BaseFilter):
         super().__init__()
         self.name = "Flou Gaussien"
         self.category = "Lissage / Réduction de bruit"
-        self.description = "Applique un flou gaussien pour réduire le bruit"
+        self.description = "Applique un flou gaussien pour réduire le bruit et lisser l'image. Idéal pour prétraitement ou effet artistique."
 
     def apply(self, image: cv2.Mat, params: Dict[str, Any]) -> cv2.Mat:
         ksize = params.get("kernel_size", 5)

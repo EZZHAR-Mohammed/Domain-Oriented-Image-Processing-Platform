@@ -13,7 +13,7 @@ class BaseFilter(ABC):
     def __init__(self):
         self.name: str = "Filtre inconnu"
         self.category: str = "Général"
-        self.description: str = "Description non fournie"
+        self.description: str = "Aucune description disponible."        
 
     @abstractmethod
     def apply(self, image: cv2.Mat, params: Dict[str, Any]) -> cv2.Mat:

@@ -8,7 +8,7 @@ class SuperResolution(BaseFilter):
         super().__init__()
         self.name = "Super-résolution (x2 Lanczos)"
         self.category = "Avancé / Amélioration"
-        self.description = "Améliore la résolution par interpolation de haute qualité"
+        self.description = "Améliore la résolution de l'image par interpolation de haute qualité (algorithme Lanczos). Agrandit l'image sans perte visible de détails."
 
     def apply(self, image, params):
         scale = params.get("scale", 2.0)

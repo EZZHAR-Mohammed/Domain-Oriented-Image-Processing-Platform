@@ -12,8 +12,7 @@ class TargetDetection(BaseFilter):
         super().__init__()
         self.name = "Détection de cibles adaptative"
         self.category = "Militaire / Reconnaissance"
-        self.description = "Seuil adaptatif + contours pour repérer objets/cibles"
-
+        self.description = "Détection de cibles adaptative pour imagerie militaire. Utilise un seuillage adaptatif pour identifier les zones d'intérêt et dessine des contours autour des cibles potentielles."
     def apply(self, image, params):
         gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
         thresh = cv2.adaptiveThreshold(

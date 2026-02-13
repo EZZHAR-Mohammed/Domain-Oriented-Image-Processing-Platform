@@ -9,6 +9,7 @@ class CellSegmentation(BaseFilter):
         super().__init__()
         self.name = "Segmentation cellulaire (Watershed simplifié)"
         self.category = "Biologie / Segmentation"
+        self.description = "Segmente les cellules ou objets dans une image biologique en utilisant une approche simplifiée de l'algorithme de Watershed. Utile pour l'analyse de cultures cellulaires ou d'échantillons microscopiques."
 
     def apply(self, image: cv2.Mat, params: Dict) -> cv2.Mat:
         gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)

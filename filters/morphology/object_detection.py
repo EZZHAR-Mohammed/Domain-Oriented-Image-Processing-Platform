@@ -8,6 +8,7 @@ class ObjectDetection(BaseFilter):
         super().__init__()
         self.name = "Détection d'objets simple (contours)"
         self.category = "Morphologie / Détection"
+        self.description = "Détecte les objets dans l'image en utilisant la détection de contours. Utile pour identifier et localiser des objets distincts dans une scène."
 
     def apply(self, image: cv2.Mat, params: Dict) -> cv2.Mat:
         gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)

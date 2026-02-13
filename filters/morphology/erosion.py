@@ -9,6 +9,7 @@ class Erosion(BaseFilter):
         super().__init__()
         self.name = "Érosion morphologique"
         self.category = "Morphologie"
+        self.description = "Applique une érosion morphologique pour réduire les objets dans l'image. Utile pour éliminer le bruit ou séparer des objets connectés."
 
     def apply(self, image: cv2.Mat, params: Dict) -> cv2.Mat:
         kernel_size = params.get("kernel_size", 3)

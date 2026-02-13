@@ -8,7 +8,7 @@ class AdaptiveDenoising(BaseFilter):
         super().__init__()
         self.name = "Débruitage adaptatif NLM"
         self.category = "Médical / Débruitage"
-        self.description = "Réduction de bruit non-local means – très efficace pour IRM/radiographie"
+        self.description = "Réduction avancée du bruit par méthode non-local means (NLM). Très efficace pour les images médicales (IRM, scanner)."
 
     def apply(self, image, params):
         h = params.get("h", 10)

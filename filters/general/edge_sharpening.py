@@ -8,6 +8,7 @@ class EdgeSharpening(BaseFilter):
         super().__init__()
         self.name = "Netteté des bords (Unsharp Mask)"
         self.category = "Général / Enhancement"
+        self.description = "Améliore la netteté des bords en utilisant la technique de l'Unsharp Mask. Idéal pour renforcer les détails et les contours dans une image."
 
     def apply(self, image: cv2.Mat, params: dict) -> cv2.Mat:
         sigma = params.get("sigma", 1.0)

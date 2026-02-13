@@ -8,7 +8,7 @@ class StainEnhancement(BaseFilter):
         super().__init__()
         self.name = "Amélioration des colorations (biologie)"
         self.category = "Biologie / Microscopie"
-
+        self.description = "Enhances staining and color contrast in histological or biological images."
     def apply(self, image: cv2.Mat, params: Dict) -> cv2.Mat:
         hsv = cv2.cvtColor(image, cv2.COLOR_BGR2HSV)
         hsv[:,:,1] = cv2.multiply(hsv[:,:,1], 1.4)  # boost saturation
