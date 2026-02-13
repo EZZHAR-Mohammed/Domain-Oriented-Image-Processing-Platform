@@ -74,9 +74,54 @@ class UNet(BaseFilter):
                 return image
 
             print("U-Net appliqué avec succès → masque rouge généré")
-            print("Masque debug :", parsed.get("debug_mask"))
+            debug_mask_path = parsed.get("debug_mask")
+            print("Masque debug :", debug_mask_path)
 
-            return result_img
+            # Si un masque debug est fourni, l'utiliser pour créer
+            # une vraie sortie de segmentation : conserver les
+            # couleurs originales dans les zones segmentées et
+            # mettre le reste en niveaux de gris.
+            try:
+                if debug_mask_path and os.path.exists(debug_mask_path):
+                    mask = cv2.imread(debug_mask_path, cv2.IMREAD_GRAYSCALE)
+                    if mask is None:
+                        return result_img
+
+                    # Normaliser le masque (0 ou 255)
+                    _, mask_bin = cv2.threshold(mask, 127, 255, cv2.THRESH_BINARY)
+
+                    # Diagnostics : afficher statistiques du masque pour debug
+                    try:
+                        import numpy as _np
+                        unique, counts = _np.unique(mask_bin, return_counts=True)
+                        stats = dict(zip([int(u) for u in unique.tolist()], counts.tolist()))
+                        print(f"DEBUG mask stats: shape={mask_bin.shape}, uniques={stats}")
+
+                        # Si le masque est entièrement blanc (255), la composition
+                        # précédente retournait l'image originale (aucun effet visible).
+                        # Dans ce cas, retourner l'image produite par le worker
+                        # (overlay rouge + bordure) pour assurer une indication visuelle.
+                        unique_vals = [int(u) for u in unique.tolist()]
+                        if set(unique_vals) == {255}:
+                            print("DEBUG: mask fully 255 — using worker overlay result for visibility")
+                            return result_img
+                    except Exception:
+                        pass
+
+                    # Préparer images
+                    orig = image.copy()
+                    gray = cv2.cvtColor(orig, cv2.COLOR_BGR2GRAY)
+                    gray_bgr = cv2.cvtColor(gray, cv2.COLOR_GRAY2BGR)
+
+                    # Composer : zones segmentées gardent la couleur
+                    mask_3c = mask_bin[:, :, None]
+                    composed = (orig * (mask_3c // 255) + gray_bgr * (1 - (mask_3c // 255))).astype('uint8')
+
+                    return composed
+                else:
+                    return result_img
+            except Exception:
+                return result_img
 
         except Exception as e:
             print("Erreur lancement worker U-Net :", e)
