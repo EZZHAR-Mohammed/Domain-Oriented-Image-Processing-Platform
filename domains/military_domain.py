@@ -5,7 +5,6 @@ from filters.enhancement.thermal_enhancement import ThermalEnhancement
 from filters.morphology.object_detection import ObjectDetection
 from filters.military.target_detection import TargetDetection
 from filters.advanced.anomaly_detection import AnomalyDetection
-from filters.advanced.super_resolution import SuperResolution
 
 class MilitaryDomain(BaseDomain):
     def __init__(self):
@@ -16,5 +15,4 @@ class MilitaryDomain(BaseDomain):
             ObjectDetection(),
             TargetDetection(),    # Nouveau
             AnomalyDetection(),   # Nouveau
-            SuperResolution(),    # Nouveau
         ]

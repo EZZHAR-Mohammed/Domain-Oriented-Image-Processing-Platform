@@ -5,7 +5,6 @@ from filters.enhancement.histogram_equalization import HistogramEqualization
 from filters.enhancement.bone_enhancement import BoneEnhancement
 from filters.advanced.anomaly_detection import AnomalyDetection
 from filters.medical.adaptive_denoising import AdaptiveDenoising
-from filters.advanced.super_resolution import SuperResolution
 
 class MedicalDomain(BaseDomain):
     def __init__(self):
@@ -16,5 +15,4 @@ class MedicalDomain(BaseDomain):
             BoneEnhancement(),
             AdaptiveDenoising(),  # Nouveau
             AnomalyDetection(),   # Nouveau
-            SuperResolution(),    # Nouveau
         ]
